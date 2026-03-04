@@ -367,7 +367,7 @@ for user in cold_users:
     candidate_scores = {}
     
     # 遍历历史商品，找相似商品
-    for hist_item in history_items[:10]:  # 只考虑最近5个
+    for hist_item in history_items[:5]:  # 只考虑最近5个
         if hist_item in co_recall_dict:
             for sim_item in co_recall_dict[hist_item][:10]:
                 if sim_item not in candidate_scores:
@@ -399,7 +399,7 @@ for user in mixed_users:
     candidate_items = []
     candidate_scores = {}
     
-    for hist_item in history_items[:5]:
+    for hist_item in history_items[:3]:
         if hist_item in co_recall_dict:
             for sim_item in co_recall_dict[hist_item][:5]:
                 if sim_item not in candidate_scores:
