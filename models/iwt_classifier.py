@@ -335,6 +335,7 @@ def HIWT_GSC(
                                         p=p,
                                         num_groups=num_groups,
                                         s=s1,
+                                        lambda_param=lambda_param,
                                         gidx=gidx,
                                         sgidx=sgidx,
                                         verbose=verbose,
@@ -422,6 +423,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         self.classes_ = np.unique(y)
 
         device = self.gidx.device
+        X = self._normalize_columns(X)
         X = torch.tensor(X, dtype=torch.float32, device=device)
         y = torch.tensor(y, dtype=torch.float32, device=device)
         n, p = X.shape
@@ -454,6 +456,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         check_is_fitted(self)
 
         device = self.gidx.device
+        X = self._normalize_columns(X)
         X = torch.tensor(X, dtype=torch.float32, device=device)
         logits = X @ torch.tensor(self.X_, device=device)
         probs = torch.sigmoid(logits).cpu().numpy()
@@ -462,3 +465,9 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
     def predict(self, X):
         probs = self.predict_proba(X)[:, 1]
         return (probs >= 0.5).astype(int)
+
+    def _normalize_columns(self, X):
+        """每列除以其 L2 范数"""
+        norms = np.linalg.norm(X, axis=0)
+        # norms[norms == 0] = 1  # 避免除零
+        return X / norms
