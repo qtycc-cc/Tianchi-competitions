@@ -403,6 +403,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
             gmi: torch.Tensor | None = None,
             verbose: bool = False,
             draw_loss: bool = False,
+            need_normalize: bool = False,
     ):
         if strategy == 'M' and gmi is None:
             raise ValueError('Gmi is required in strategy M')
@@ -416,6 +417,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         self.gmi = gmi
         self.verbose = verbose
         self.draw_loss = draw_loss
+        self.need_normalize = need_normalize
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
@@ -423,7 +425,8 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         self.classes_ = np.unique(y)
 
         device = self.gidx.device
-        X = self._normalize_columns(X)
+        if self.need_normalize:
+            X = self._normalize_columns(X)
         X = torch.tensor(X, dtype=torch.float32, device=device)
         y = torch.tensor(y, dtype=torch.float32, device=device)
         n, p = X.shape
@@ -456,7 +459,8 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         check_is_fitted(self)
 
         device = self.gidx.device
-        X = self._normalize_columns(X)
+        if self.need_normalize:
+            X = self._normalize_columns(X)
         X = torch.tensor(X, dtype=torch.float32, device=device)
         logits = X @ torch.tensor(self.X_, device=device)
         probs = torch.sigmoid(logits).cpu().numpy()
