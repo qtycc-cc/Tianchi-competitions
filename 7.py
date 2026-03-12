@@ -51,6 +51,17 @@ def precompute_co_occurrence_recall(C, top_n=20):
         co_recall_dict[i] = [j for j, _ in sorted_co_items]
     return co_recall_dict
 
+def transform_date(df: pd.DataFrame) -> pd.DataFrame:
+    df['create_order_time'] = pd.to_datetime(df['create_order_time'])
+    df['month'] = df['create_order_time'].dt.month
+    df['day'] = df['create_order_time'].dt.day
+    df['hour'] = df['create_order_time'].dt.hour
+    df['dayofweek'] = df['create_order_time'].dt.dayofweek
+    df['dayofyear'] = df['create_order_time'].dt.dayofyear
+    df['is_weekend'] = df['dayofweek'].isin([5,6]).astype(int)
+    # df.drop(columns='create_order_time',inplace=True)
+    return df
+
 def flatten_multiindex(df: pd.DataFrame, key: str) -> pd.DataFrame:
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = ['_'.join(col).strip() for col in df.columns.values]
@@ -78,13 +89,57 @@ def Repeat_Purchase_Reranking(df):
     df['irank'] = df.groupby(['buyer_admin_id']).cumcount() + 1
     return df
 
-def process_data():
+def train_model(X: pd.DataFrame, y: pd.Series, X_test: pd.DataFrame):
+    lgb_params = {
+        'boosting_type': 'gbdt',
+        'objective': 'binary',
+        'metric': 'binary_logloss',
+        'max_depth':6,
+        'learning_rate': 0.1,
+        'feature_fraction': 0.8,
+        'bagging_fraction': 0.8,
+        'seed': 42,
+        'verbose': -1,
+        'device': 'cpu',
+    }
+
+    skf = StratifiedKFold(n_splits=5, random_state=42, shuffle=True)
+    ens_test = []
+
+    for fold, (train_ix, test_ix) in enumerate(skf.split(X, y)):
+        print(f'Fold {fold + 1}')
+
+        X_train, X_val = X.iloc[train_ix], X.iloc[test_ix]
+        y_train, y_val = y.iloc[train_ix], y.iloc[test_ix]
+
+        lgb_clf = lgb.LGBMClassifier(**lgb_params, n_estimators=1000)
+        lgb_clf.fit(
+            X_train, y_train,
+            eval_set=[(X_val, y_val)],
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=200),
+                lgb.log_evaluation(period=200)
+            ],
+        )
+        # lgb_val_proba = lgb_clf.predict_proba(X_val)[:, 1]
+        lgb_test_proba = lgb_clf.predict_proba(X_test)[:, 1]
+        # lgb_val_proba_ = np.where(lgb_val_proba > 0.5, 1, 0)
+        ens_test.append(lgb_test_proba)
+
+    mean_preds = np.mean(ens_test,axis=0)
+    return mean_preds
+
+@result_beep
+def main():
     attr = pd.read_csv('data/7/Antai_AE_round1_item_attr_20190626.csv')
     train = pd.read_csv('data/7/Antai_AE_round1_train_20190626.csv')
     test = pd.read_csv('data/7/Antai_AE_round1_test_20190626.csv')
 
-    C, N = calculate_time_decay_co_occurrence(train)
-    co_recall_dict = precompute_co_occurrence_recall(C, top_n=10)
+    # C, N = calculate_time_decay_co_occurrence(train)
+    # co_recall_dict = precompute_co_occurrence_recall(C, top_n=10)
+
+    train = transform_date(train)
+    test = transform_date(test)
 
     train = train.merge(attr, on='item_id', how='left')
     test = test.merge(attr, on='item_id', how='left')
@@ -160,51 +215,7 @@ def process_data():
 
     X.fillna(0, inplace=True)
     X_test.fillna(0, inplace=True)
-    return X, y, X_test, train, test, attr, co_recall_dict
 
-def train_model(X: pd.DataFrame, y: pd.Series, X_test: pd.DataFrame):
-    lgb_params = {
-        'boosting_type': 'gbdt',
-        'objective': 'binary',
-        'metric': 'binary_logloss',
-        'max_depth':6,
-        'learning_rate': 0.1,
-        'feature_fraction': 0.8,
-        'bagging_fraction': 0.8,
-        'seed': 42,
-        'verbose': -1,
-        'device': 'cpu',
-    }
-
-    skf = StratifiedKFold(n_splits=5, random_state=42, shuffle=True)
-    ens_test = []
-
-    for fold, (train_ix, test_ix) in enumerate(skf.split(X, y)):
-        print(f'Fold {fold + 1}')
-
-        X_train, X_val = X.iloc[train_ix], X.iloc[test_ix]
-        y_train, y_val = y.iloc[train_ix], y.iloc[test_ix]
-
-        lgb_clf = lgb.LGBMClassifier(**lgb_params, n_estimators=1000)
-        lgb_clf.fit(
-            X_train, y_train,
-            eval_set=[(X_val, y_val)],
-            callbacks=[
-                lgb.early_stopping(stopping_rounds=200),
-                lgb.log_evaluation(period=200)
-            ],
-        )
-        # lgb_val_proba = lgb_clf.predict_proba(X_val)[:, 1]
-        lgb_test_proba = lgb_clf.predict_proba(X_test)[:, 1]
-        # lgb_val_proba_ = np.where(lgb_val_proba > 0.5, 1, 0)
-        ens_test.append(lgb_test_proba)
-
-    mean_preds = np.mean(ens_test,axis=0)
-    return mean_preds
-
-@result_beep
-def main():
-    X, y, X_test, train, test, attr, co_recall_dict = process_data()
     test['label_prob'] = train_model(X, y, X_test)
 
     test = test.sort_values(
@@ -266,13 +277,13 @@ def main():
                     existing_items.add(final_submission.at[idx, f'predict {j}'])
                 fill_value = None
 
-                if fill_value is None:
-                    if hist_item in co_recall_dict:
-                        # 从共现列表中找未推荐过的商品
-                        for co_item in co_recall_dict[hist_item]:
-                            if co_item not in existing_items:
-                                fill_value = co_item
-                                break
+                # if fill_value is None:
+                #     if hist_item in co_recall_dict:
+                #         # 从共现列表中找未推荐过的商品
+                #         for co_item in co_recall_dict[hist_item]:
+                #             if co_item not in existing_items:
+                #                 fill_value = co_item
+                #                 break
                 # 先尝试使用cate1的热门商品
                 if fill_value is None:
                     cate1 = final_submission.at[idx, 'cate1']

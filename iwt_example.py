@@ -1,7 +1,7 @@
 import torch
-from sklearn.discriminant_analysis import StandardScaler
+import numpy as np
+from sklearn.preprocessing import QuantileTransformer
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import make_pipeline
 from sklearn.datasets import make_classification
 from sklearn.metrics import f1_score, log_loss, roc_auc_score
 
@@ -38,22 +38,41 @@ for kki in range(num_groups):
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, stratify=y
 )
+# DataFrame convert to ndarray
+# X_train = X_train.values
+# X_test = X_test.values
+# y_train = y_train.values
+# y_test = y_test.values
 
-pipeline = make_pipeline(
-    StandardScaler(), IWT_Classifier(
-        num_groups=len(sgidx),
-        s=num_groups,
-        gidx=gidx,
-        sgidx=sgidx,
-        strategy='B',
-        equalsize=True,
-        verbose=True,
-        draw_loss=True
-    )
+noise = (
+    np.random.default_rng(0)
+    .normal(0.0, 1e-5, X_train.shape)
+    .astype(X_train.dtype)
 )
-pipeline.fit(X_train, y_train)
-cross_entropy = log_loss(y_test, pipeline.predict_proba(X_test))
-f1 = f1_score(y_test, pipeline.predict(X_test))
-auc = roc_auc_score(y_test, pipeline.predict_proba(X_test)[:, 1])
+
+preprocessing = QuantileTransformer(
+    n_quantiles=max(min(len(X) // 30, 1000), 10),
+    output_distribution='normal',
+    subsample=10**9,
+).fit(X_train.copy() + noise)
+
+X_train = preprocessing.transform(X_train)
+X_test = preprocessing.transform(X_test)
+
+model = IWT_Classifier(
+    num_groups=len(sgidx),
+    s=num_groups,
+    gidx=gidx,
+    sgidx=sgidx,
+    strategy='B',
+    equalsize=True,
+    verbose=True,
+    draw_loss=True
+)
+
+model.fit(X_train, y_train)
+cross_entropy = log_loss(y_test, model.predict_proba(X_test))
+f1 = f1_score(y_test, model.predict(X_test))
+auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
 
 print(f"Cross_entropy={cross_entropy} | f1={f1} | auc={auc}")
