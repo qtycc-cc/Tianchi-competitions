@@ -1,4 +1,6 @@
 import torch
+import winsound
+import traceback
 from typing import List
 from sklearn.feature_selection import mutual_info_classif
 
@@ -48,3 +50,22 @@ def calculate_group_mi(
             group_mi[i] = group_feat_mi.mean()
 
     return group_mi
+
+def result_beep(func):
+    """
+    decorator for beep
+    :param func:
+    :return:
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            res = func(*args, **kwargs)
+            winsound.Beep(500, 3000)
+            return res
+        except BaseException as ex:
+            traceback.print_exc()
+            for i in range(3):
+                freq = 800 + i * 200
+                winsound.Beep(freq, 1000)
+            return None
+    return wrapper

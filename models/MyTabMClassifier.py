@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.metrics import roc_auc_score
 import tabm
 import torch
 import torch.nn as nn
@@ -98,6 +99,8 @@ class TabMClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
         
     cv_agg_method : str, default='mean'
         交叉验证集成方法：'mean'（平均概率）或 'vote'（投票）。
+    val_metric_name: str, default='cross_entropy'
+        训练集评估方法: 'cross_entropy'或'auc'
     """
     
     def __init__(
@@ -126,6 +129,7 @@ class TabMClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
         class_weight: Optional[Union[str, Dict[int, float]]] = None,
         n_cv: int = 1,
         cv_agg_method: str = 'mean',
+        val_metric_name: Literal['cross_entropy', 'auc'] = 'cross_entropy',
     ):
         self.n_epochs = n_epochs
         self.batch_size = batch_size
@@ -150,7 +154,7 @@ class TabMClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
         self.class_weight = class_weight
         self.n_cv = n_cv
         self.cv_agg_method = cv_agg_method
-        
+        self.val_metric_name = val_metric_name
         if n_blocks == 'auto':
             self.n_blocks = 3 if self.num_embeddings is None else 2
         else:
@@ -532,15 +536,30 @@ class TabMClassifier(sklearn.base.BaseEstimator, sklearn.base.ClassifierMixin):
             
             y_pred = torch.cat(y_pred_list)
             y_true = data_val['y']
-            
-            y_true_expanded = y_true.unsqueeze(1).unsqueeze(-1).expand(
-                -1, y_pred.shape[1], -1
-            )
-            res = -nn.functional.log_softmax(y_pred, dim=-1).gather(
-                -1, y_true_expanded
-            ).squeeze(-1)
-            
-            score = -res.mean().item()
+
+            if self.val_metric_name == 'cross_entropy':
+                y_true_expanded = y_true.unsqueeze(1).unsqueeze(-1).expand(
+                    -1, y_pred.shape[1], -1
+                )
+                res = -nn.functional.log_softmax(y_pred, dim=-1).gather(
+                    -1, y_true_expanded
+                ).squeeze(-1)
+                
+                score = -res.mean().item()
+            elif self.val_metric_name == 'auc':
+                # 对 ensemble 成员取平均概率
+                y_pred_proba = torch.softmax(y_pred, dim=-1).mean(dim=1)  # (n_samples, n_classes)
+                
+                # 转换为 numpy
+                y_pred_proba_np = y_pred_proba.cpu().numpy()
+                y_true_np = y_true.cpu().numpy()
+                
+                # 二分类：取正类概率计算 AUC
+                if self.n_classes_ == 2:
+                    # 假设正类是索引 1（classes_ 中排序后的第二个）
+                    score = roc_auc_score(y_true_np,  y_pred_proba_np[:, 1])
+                else:
+                    score = roc_auc_score(y_true_np, y_pred_proba_np, multi_class='ovr', average='macro')
         
         return float(score)
     

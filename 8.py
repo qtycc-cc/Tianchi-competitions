@@ -1,13 +1,11 @@
-import pandas as pd
-import numpy as np
-import datetime
 import gc
 import os
+import datetime
+import pandas as pd
+import numpy as np
 import lightgbm as lgb
-from warnings import filterwarnings
 
-from sklearn.model_selection import StratifiedKFold, train_test_split
-filterwarnings('ignore')
+from util import result_beep
 
 # --------------------------
 # 全局配置
@@ -543,7 +541,7 @@ def train_and_predict(balanced_train, test_set):
     """
     
     from pytabkit import TabM_D_Classifier, LGBM_TD_Classifier, TabM_HPO_Classifier
-    from models.My_TabM_HPO_Classifier import My_TabM_HPO_Classifier
+
     model = TabM_D_Classifier(
         # n_cv=10,
         verbosity=2,
@@ -577,6 +575,7 @@ def train_and_predict(balanced_train, test_set):
 # --------------------------
 # 主流程
 # --------------------------
+@result_beep
 def main():
     print("=" * 50)
     print("阿里移动推荐算法大赛")
@@ -603,5 +602,5 @@ def main():
     
     print("\n=== 完成 ===")
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+main()

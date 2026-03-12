@@ -1142,6 +1142,7 @@ dependencies = [
     { name = "jupyterlab" },
     { name = "lightgbm" },
     { name = "matplotlib" },
+    { name = "momo-opt" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pytabkit" },
@@ -1164,6 +1165,7 @@ requires-dist = [
     { name = "jupyterlab", specifier = ">=4.5.1" },
     { name = "lightgbm", specifier = ">=4.6.0" },
     { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "momo-opt", specifier = ">=0.1.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pyarrow", specifier = ">=23.0.0" },
     { name = "pytabkit", specifier = "==1.7.3" },
@@ -1396,6 +1398,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d7/02/a7fb8b21d4d55ac93cdcde9d3638da5dd0ebdd3a4fed76c7725e10b81cbe/mistune-3.1.4.tar.gz", hash = "sha256:b5a7f801d389f724ec702840c11d8fc48f2b33519102fc7ee739e8177b672164", size = 94588, upload-time = "2025-08-29T07:20:43.594Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/f0/8282d9641415e9e33df173516226b404d367a0fc55e1a60424a152913abc/mistune-3.1.4-py3-none-any.whl", hash = "sha256:93691da911e5d9d2e23bc54472892aff676df27a75274962ff9edc210364266d", size = 53481, upload-time = "2025-08-29T07:20:42.218Z" },
+]
+
+[[package]]
+name = "momo-opt"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "torch", version = "2.9.0+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ee/09/23651f542e8ac27e2ae63aa7b38365ff1d6b289b39254ada4c58f39e0e57/momo-opt-0.1.0.tar.gz", hash = "sha256:4c4e9336652d68d0cad4dfddbc8f7a38acaa9e4e6fd8e83262294d547f737352", size = 7004, upload-time = "2023-05-13T08:51:19.585Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/f6/04626a49f15cb3608f02ab84bcebdd7ca647f0b92fef7c2c5fe6c57eb4cd/momo_opt-0.1.0-py3-none-any.whl", hash = "sha256:90648b8189bfc34cf183d8f2f286baa78c2ca1f0541ef332d3ff13cde77728c1", size = 8632, upload-time = "2023-05-13T08:51:17.23Z" },
 ]
 
 [[package]]

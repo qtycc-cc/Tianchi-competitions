@@ -9,6 +9,7 @@ dependencies = [
     "jupyterlab>=4.5.1",
     "lightgbm>=4.6.0",
     "matplotlib>=3.10.8",
+    "momo-opt>=0.1.0",
     "pandas>=2.3.3",
     "pyarrow>=23.0.0",
     "pytabkit==1.7.3",
