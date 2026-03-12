@@ -83,7 +83,7 @@ def process_data():
     train = pd.read_csv('data/7/Antai_AE_round1_train_20190626.csv')
     test = pd.read_csv('data/7/Antai_AE_round1_test_20190626.csv')
 
-    C, N = calculate_time_decay_co_occurrence(train[train['buyer_country_id'] == 'yy'])
+    C, N = calculate_time_decay_co_occurrence(train)
     co_recall_dict = precompute_co_occurrence_recall(C, top_n=10)
 
     train = train.merge(attr, on='item_id', how='left')
