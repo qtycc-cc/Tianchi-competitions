@@ -4,6 +4,10 @@ import datetime
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
+import xgboost as xgb
+import catboost as cb
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
 from util import result_beep
 
@@ -439,122 +443,163 @@ def train_and_predict(balanced_train, test_set):
     
     # 准备特征
     feature_cols = [col for col in balanced_train.columns 
-                    if col not in ['user_id', 'item_id', 'item_category', 
-                                   'daystime', 'hours', 'behavior_type', 'label', 'user_geohash']]
+                    if col not in ['user_id', 'daystime', 'label', 'user_geohash', 'item_category', 'item_id']]
     
     print(f"使用特征数: {len(feature_cols)}")
     print(f"使用特征: {feature_cols}")
     
-    X_train = balanced_train[feature_cols]
-    y_train = balanced_train['label']
+    X = balanced_train[feature_cols]
+    y = balanced_train['label']
     X_test = test_set[feature_cols]
+    categorical_features = ['behavior_type', 'hours']
+    for col in categorical_features:
+        X[col] = X[col].astype('category')
+        X_test[col] = X_test[col].astype('category')
     
-    # 划分验证集
-    # X_tr, X_val, y_tr, y_val = train_test_split(
-    #     X_train, y_train, test_size=0.9, random_state=42, stratify=y_train
-    # )
-    # print(f"训练集head3: {X_tr.head(3)}")
-    
-    # # LightGBM参数（答辩文档提到使用GBDT系列）
-    # params = {
+    # lgb_params = {
     #     'boosting_type': 'gbdt',
     #     'objective': 'binary',
-    #     'metric': 'auc',
-    #     'num_leaves': 63,
-    #     'learning_rate': 0.05,
+    #     'metric': 'AUC',
+    #     'max_depth': 4,
+    #     'learning_rate': 0.01,
     #     'feature_fraction': 0.8,
     #     'bagging_fraction': 0.8,
-    #     'bagging_freq': 5,
+    #     'seed': 42,
     #     'verbose': -1,
-    #     'n_jobs': -1,
-    #     'min_child_samples': 20
+    #     'n_estimators': 8000
     # }
-    
-    # # 训练模型
-    # print("训练LightGBM模型...")
-    # lgb_train = lgb.Dataset(X_tr, y_tr)
-    # lgb_val = lgb.Dataset(X_val, y_val, reference=lgb_train)
-    
-    # model = lgb.train(
-    #     params,
-    #     lgb_train,
-    #     num_boost_round=1000,
-    #     valid_sets=[lgb_val],
-    #     callbacks=[lgb.early_stopping(50), lgb.log_evaluation(100)]
-    # )
-    
-    # # 特征重要性
-    # feat_importance = pd.DataFrame({
-    #     'feature': feature_cols,
-    #     'importance': model.feature_importance()
-    # }).sort_values('importance', ascending=False)
-    # print("\n重要特征:")
-    # print(feat_importance)
-    
-    # # 预测
-    # print("\n生成预测结果...")
-    # test_pred = model.predict(X_test)
-    # 0.895853 -> 0.104147
-    """
-    重要特征:
-            feature  importance
-    0          user_view        1719
-    34           uc_view        1247
-    24  cate_view_to_buy        1038
-    5   user_view_to_buy        1036
-    25  cate_cart_to_buy         990
-    26   cate_fav_to_buy         970
-    27           ui_view         876
-    2          user_cart         749
-    13      user_count_i         742
-    6   user_cart_to_buy         734
-    23      user_count_c         665
-    21          cate_buy         652
-    15  item_cart_to_buy         646
-    14  item_view_to_buy         642
-    8          item_view         628
-    16   item_fav_to_buy         621
-    10         item_cart         615
-    19          cate_fav         606
-    4   user_active_days         585
-    18         cate_view         559
-    12        item_count         556
-    7    user_fav_to_buy         547
-    1           user_fav         531
-    20         cate_cart         514
-    38      uc_buy_ratio         489
-    36           uc_cart         481
-    9           item_fav         465
-    17     item_buy_freq         459
-    39   view_rank_in_uc         391
-    11          item_buy         353
-    3           user_buy         290
-    29           ui_cart         276
-    37            uc_buy         254
-    35            uc_fav         249
-    28            ui_fav         232
-    22        cate_count         230
-    31    ui_view_to_buy         130
-    32    ui_cart_to_buy          94
-    30            ui_buy          54
-    33     ui_fav_to_buy          25
-    """
-    
-    from pytabkit import TabM_D_Classifier, LGBM_TD_Classifier, TabM_HPO_Classifier
 
-    model = TabM_D_Classifier(
-        # n_cv=10,
-        verbosity=2,
+    # xgb_params = {
+    #     'max_depth': 4,
+    #     'learning_rate': 0.01,
+    #     'n_estimators': 8000,
+    #     'subsample': 0.8,
+    #     'colsample_bytree': 0.8,
+    #     'random_state': 42,
+    #     'eval_metric': 'auc',
+    #     'enable_categorical': True,
+    #     'use_label_encoder': False
+    # }
+
+    # cat_params = {
+    #     'iterations': 8000,
+    #     'learning_rate': 0.01,
+    #     'depth': 5,
+    #     'l2_leaf_reg': 3,
+    #     'random_seed': 42,
+    #     'loss_function': 'Logloss',
+    #     'eval_metric': 'AUC',
+    #     'od_type': 'Iter',
+    #     'od_wait': 200,
+    #     'verbose': 200
+    # }
+
+    # skf = StratifiedKFold(n_splits=5, random_state=42, shuffle=True)
+
+    # fold_auc_lgb = []
+    # fold_auc_xgb = []
+    # fold_auc_cat = []
+    # fold_auc_ensemble = []
+
+    # ens_test_lgb = []
+    # ens_test_xgb = []
+    # ens_test_cat = []
+
+    # print("\nStarting training...")
+
+    # for fold, (train_ix, val_ix) in enumerate(skf.split(X, y)):
+    #     print(f"\n========== Fold {fold+1} ==========")
+    #     X_train, X_val = X.iloc[train_ix], X.iloc[val_ix]
+    #     y_train, y_val = y.iloc[train_ix], y.iloc[val_ix]
+        
+    #     # ----- LightGBM -----
+    #     print("--- Training LightGBM ---")
+    #     lgb_clf = lgb.LGBMClassifier(**lgb_params)
+    #     lgb_clf.fit(
+    #         X_train, y_train,
+    #         eval_set=[(X_val, y_val)],
+    #         callbacks=[lgb.early_stopping(stopping_rounds=200), lgb.log_evaluation(period=200)],
+    #         categorical_feature=categorical_features
+    #     )
+    #     lgb_val_proba = lgb_clf.predict_proba(X_val)[:, 1]
+    #     lgb_test_proba = lgb_clf.predict_proba(X_test)[:, 1]
+    #     lgb_auc = roc_auc_score(y_val, lgb_val_proba)
+    #     print(f'LGB AUC: {lgb_auc:.6f}')
+    #     fold_auc_lgb.append(lgb_auc)
+    #     ens_test_lgb.append(lgb_test_proba)
+        
+    #     # ----- XGBoost -----
+    #     print("--- Training XGBoost ---")
+    #     X_train_xgb = X_train.copy()
+    #     X_val_xgb = X_val.copy()
+    #     X_test_xgb = X_test.copy()
+    #     for col in categorical_features:
+    #         X_train_xgb[col] = X_train_xgb[col].cat.codes
+    #         X_val_xgb[col] = X_val_xgb[col].cat.codes
+    #         X_test_xgb[col] = X_test_xgb[col].cat.codes
+        
+    #     xgb_clf = xgb.XGBClassifier(**xgb_params, early_stopping_rounds=200)
+    #     xgb_clf.fit(
+    #         X_train_xgb, y_train,
+    #         eval_set=[(X_val_xgb, y_val)],
+    #         # early_stopping_rounds=200,
+    #         # verbose=200
+    #     )
+    #     xgb_val_proba = xgb_clf.predict_proba(X_val_xgb)[:, 1]
+    #     xgb_test_proba = xgb_clf.predict_proba(X_test_xgb)[:, 1]
+    #     xgb_auc = roc_auc_score(y_val, xgb_val_proba)
+    #     print(f'XGB AUC: {xgb_auc:.6f}')
+    #     fold_auc_xgb.append(xgb_auc)
+    #     ens_test_xgb.append(xgb_test_proba)
+        
+    #     # ----- CatBoost -----
+    #     print("--- Training CatBoost ---")
+    #     cat_features_indices = [i for i, col in enumerate(X_train.columns) if col in categorical_features]
+    #     cat_clf = cb.CatBoostClassifier(**cat_params)
+    #     cat_clf.fit(
+    #         X_train, y_train,
+    #         eval_set=(X_val, y_val),
+    #         early_stopping_rounds=200,
+    #         cat_features=cat_features_indices,
+    #         verbose=200,
+    #         use_best_model=True
+    #     )
+    #     cat_val_proba = cat_clf.predict_proba(X_val)[:, 1]
+    #     cat_test_proba = cat_clf.predict_proba(X_test)[:, 1]
+    #     cat_auc = roc_auc_score(y_val, cat_val_proba)
+    #     print(f'Cat AUC: {cat_auc:.6f}')
+    #     fold_auc_cat.append(cat_auc)
+    #     ens_test_cat.append(cat_test_proba)
+        
+    #     # ----- 融合 -----
+    #     ensemble_val_proba = lgb_val_proba * 0.4 + xgb_val_proba * 0.2 + cat_val_proba * 0.4
+    #     ensemble_auc = roc_auc_score(y_val, ensemble_val_proba)
+    #     print(f'Ensemble AUC: {ensemble_auc:.6f}')
+    #     fold_auc_ensemble.append(ensemble_auc)
+
+    # print("\n" + "="*50)
+    # print("Cross-Validation Results:")
+    # print(f"LightGBM  : {np.mean(fold_auc_lgb):.6f} ± {np.std(fold_auc_lgb):.6f}")
+    # print(f"XGBoost   : {np.mean(fold_auc_xgb):.6f} ± {np.std(fold_auc_xgb):.6f}")
+    # print(f"CatBoost  : {np.mean(fold_auc_cat):.6f} ± {np.std(fold_auc_cat):.6f}")
+    # print(f"Ensemble  : {np.mean(fold_auc_ensemble):.6f} ± {np.std(fold_auc_ensemble):.6f}")
+
+    # mean_preds_lgb = np.mean(ens_test_lgb, axis=0)
+    # mean_preds_xgb = np.mean(ens_test_xgb, axis=0)
+    # mean_preds_cat = np.mean(ens_test_cat, axis=0)
+    # test_pred = mean_preds_lgb * 0.4 + mean_preds_xgb * 0.2 + mean_preds_cat * 0.4
+
+    from pytabkit import LGBM_TD_Classifier
+
+    model = LGBM_TD_Classifier(
+        verbosity=1,
+        random_state=42,
         val_metric_name='1-auc_ovr_alt',
-        dropout=0.0,
-        patience=10
+        n_cv=10,
     )
-
-    model.fit(X_train, y_train)
-    print("\n生成预测结果...")
+    model.fit(X, y)
     test_pred = model.predict_proba(X_test)[:, 1]
-    # LGBM_TD_CLF 0.105783
-    
+
     # 输出Top N推荐
     test_set['score'] = test_pred
     result = test_set[['user_id', 'item_id', 'score']].copy()
