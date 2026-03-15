@@ -302,7 +302,7 @@ def HIWT_GSC(
         de_tolx: float = 0.2,
         eta: float = 1.1,
         app: Literal['LS', 'LR'] = 'LS',
-        min_tolx: float = 1e-6,
+        min_tolx: float = 1e-10,
         lambda_param: float = 0.01,
         strategy: Literal['B', 'T', 'H', 'M'] = 'B',
         mu: float = 0.5,
@@ -381,6 +381,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         "num_groups": [int],
         "s": [int],
         "gidx": [torch.Tensor],
+        "lambda_param": [float],
         "strategy": [str],
         "equalsize": [bool],
         "sgidx": [list, type(None)],
@@ -397,6 +398,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
             gidx: torch.Tensor,
             strategy: Literal['B', 'T', 'H', 'M'],
             *,
+            lambda_param: float = 1.,
             equalsize: bool = True,
             sgidx: List[torch.Tensor] | None = None,
             mu: float = 0.5,
@@ -410,6 +412,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         self.num_groups = num_groups
         self.s = s
         self.gidx = gidx
+        self.lambda_param = lambda_param
         self.strategy = strategy
         self.equalsize = equalsize
         self.sgidx = sgidx
@@ -439,6 +442,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
             self.num_groups,
             self.s,
             self.gidx,
+            lambda_param=self.lambda_param,
             equalsize=self.equalsize,
             sgidx=self.sgidx,
             app='LR',
