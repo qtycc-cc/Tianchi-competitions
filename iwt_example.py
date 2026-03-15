@@ -11,6 +11,7 @@ from util import calculate_group_mi
 X, y = make_classification(
     n_samples=2000,
     n_features=100,
+    random_state=42
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -54,7 +55,8 @@ preprocessing = QuantileTransformer(
     n_quantiles=max(min(len(X) // 30, 1000), 10),
     output_distribution='normal',
     subsample=10**9,
-).fit(X_train.copy() + noise)
+    random_state=42,
+).fit(X_train.copy())
 
 X_train = preprocessing.transform(X_train)
 X_test = preprocessing.transform(X_test)
@@ -71,8 +73,13 @@ model = IWT_Classifier(
 )
 
 model.fit(X_train, y_train)
+print(f"x={model.X_} | x_len={len(model.X_)}")
+print(f"w={model.w_} | w_len={len(model.w_)}")
+print(f"t={model.T_} | t_len={len(model.T_)}")
 cross_entropy = log_loss(y_test, model.predict_proba(X_test))
 f1 = f1_score(y_test, model.predict(X_test))
 auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
 
 print(f"Cross_entropy={cross_entropy} | f1={f1} | auc={auc}")
+# Cross_entropy=0.2543304364255411 | f1=0.9019607843137255 | auc=0.96115
+# Cross_entropy=0.30437657579364347 | f1=0.8774509803921569 | auc=0.9510500000000001

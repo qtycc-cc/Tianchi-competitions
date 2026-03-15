@@ -5,21 +5,18 @@ description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
     "catboost>=1.2.8",
-    "imblearn>=0.0",
     "jupyterlab>=4.5.1",
     "lightgbm>=4.6.0",
     "matplotlib>=3.10.8",
-    "momo-opt>=0.1.0",
     "pandas>=2.3.3",
     "pyarrow>=23.0.0",
     "pytabkit==1.7.3",
-    "scikit-learn>=1.7.2",
+    "scikit-learn<=1.6.1",
     "scipy-stubs~=1.16.3",
     "seaborn>=0.13.2",
     "skorch>=1.3.1",
-    "tabicl>=0.1.4",
     "tabm>=0.0.3",
-    "torch==2.9.0",
+    "torch==2.7.0",
     "torchmetrics>=1.8.2",
     "xgboost>=3.1.2",
 ]
