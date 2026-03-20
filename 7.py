@@ -127,6 +127,8 @@ def train_model(X: pd.DataFrame, y: pd.Series, X_test: pd.DataFrame):
         ens_test.append(lgb_test_proba)
 
     mean_preds = np.mean(ens_test,axis=0)
+    # 0.16582 24
+    # 0.16556 iwt->16
     return mean_preds
 
 @result_beep
