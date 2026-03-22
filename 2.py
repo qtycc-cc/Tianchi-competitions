@@ -273,8 +273,8 @@ def train_model():
 def main():
     train_model()
 
-# if __name__ == 'main':
-main()
+if __name__ == '__main__':
+    main()
 
 """
 tab-mini weight[16  0  8  3  4  0  1  2  0  0] 0.6959399114348 5k 10steps

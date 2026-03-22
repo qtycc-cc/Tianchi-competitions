@@ -647,5 +647,5 @@ def main():
     
     print("\n=== 完成 ===")
 
-# if __name__ == "__main__":
-main()
+if __name__ == '__main__':
+    main()
