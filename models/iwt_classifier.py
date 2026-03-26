@@ -382,6 +382,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         "s": [int],
         "gidx": [torch.Tensor],
         "tau": [float],
+        "tol_x": [float],
         "lambda_param": [float],
         "strategy": [str],
         "equalsize": [bool],
@@ -400,6 +401,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
             strategy: Literal['B', 'T', 'H', 'M'],
             *,
             tau: float = 1.0,
+            tol_x: float = 1e-3,
             lambda_param: float = 1.0,
             equalsize: bool = True,
             sgidx: List[torch.Tensor] | None = None,
@@ -415,6 +417,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
         self.s = s
         self.gidx = gidx
         self.tau = tau
+        self.tol_x = tol_x
         self.lambda_param = lambda_param
         self.strategy = strategy
         self.equalsize = equalsize
@@ -446,6 +449,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
             self.s,
             self.gidx,
             tau=self.tau,
+            tol_x=self.tol_x,
             lambda_param=self.lambda_param,
             equalsize=self.equalsize,
             sgidx=self.sgidx,
