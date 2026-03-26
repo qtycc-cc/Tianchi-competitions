@@ -133,6 +133,7 @@ def train_model(X: pd.DataFrame, y: pd.Series, X_test: pd.DataFrame):
 
 @result_beep
 def main():
+    print("start")
     attr = pd.read_csv('data/7/Antai_AE_round1_item_attr_20190626.csv')
     train = pd.read_csv('data/7/Antai_AE_round1_train_20190626.csv')
     test = pd.read_csv('data/7/Antai_AE_round1_test_20190626.csv')
@@ -319,5 +320,5 @@ def main():
     final_submission.to_csv('data/7/submission.csv', index=False, header=False)
     print('Submission csv saved!')
 
-# if __name__ == 'main':
-main()
+if __name__ == '__main__':
+    main()
