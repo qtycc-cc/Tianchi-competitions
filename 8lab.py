@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
-from sklearn.linear_model import Lasso, LogisticRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -42,7 +42,6 @@ def balance_train_set(train_set: pd.DataFrame, pos_neg_ratio=30):
         
         return balanced_train
 
-# ['user_view', 'user_cart', 'user_buy', 'user_active_days', 'user_view_to_buy', 'item_fav', 'item_cart', 'item_buy', 'user_count_i', 'item_cart_to_buy', 'item_fav_to_buy', 'cate_cart', 'cate_buy', 'user_count_c', 'cate_view_to_buy', 'cate_fav_to_buy', 'ui_view', 'ui_fav', 'ui_cart', 'ui_buy', 'ui_view_to_buy', 'ui_cart_to_buy', 'ui_fav_to_buy', 'uc_view', 'uc_fav', 'uc_cart', 'uc_buy_ratio', 'view_rank_in_uc', 'behavior_type', 'hours']
 # 0.0719 0.0909 0.0595(f1 recall precision)
 def iwt_tabm():
     train_set = pd.read_pickle(CACHE_TRAIN_SET)
@@ -202,74 +201,6 @@ def lr_tabm():
 
     result[['user_id', 'item_id']].to_csv("data/8/tianchi_prediction_1219_lr_tabm.txt", sep='\t', index=False, header=False)
     print(f"预测结果已保存：data/8/tianchi_prediction_1219_lr_tabm.txt")
-    print(f"输出购买对数量：{len(result)}")
-
-# 0.0596 0.0757 0.0496(f1 recall precision)
-def lasso_tabm():
-    train_set = pd.read_pickle(CACHE_TRAIN_SET)
-    test_set = pd.read_pickle(CACHE_TEST_SET)
-
-
-    balanced_train = balance_train_set(train_set)
-
-    feature_cols = [col for col in balanced_train.columns 
-                        if col not in ['user_id', 'daystime', 'label', 'user_geohash', 'item_category', 'item_id']]
-        
-    print(f"使用特征数: {len(feature_cols)}")
-    print(f"使用特征: {feature_cols}")
-
-    X = balanced_train[feature_cols]
-    y = balanced_train['label']
-    X_test = test_set[feature_cols]
-    print(f"X shape: {X.shape}") #(920607, 42)
-    categorical_features = ['behavior_type', 'hours']
-
-    X_num = X[[col for col in X.columns if col not in categorical_features]]
-
-    lr_selector = SelectFromModel(
-        estimator=Lasso(),
-        max_features=28,
-        threshold=-np.inf
-    )
-    
-    lr_selector.fit(X_num, y)
-    
-    mask = lr_selector.get_support()
-    selected_numerical = X_num.columns[mask].tolist()
-    
-    print(f"Lasso选择的数值特征数量: {len(selected_numerical)}")
-    print(f"Lasso选择的数值特征: {selected_numerical}")
-    print(f"被剔除的数值特征: {[col for col in X_num.columns if col not in selected_numerical]}")
-    # 最终特征 = 保留的数值特征 + 所有类别特征
-    final_features = selected_numerical + categorical_features
-
-    print(f"最终特征数量: {len(final_features)}")
-    print(f"最终特征: {final_features}")
-
-    X = balanced_train[final_features]
-    X_test = test_set[final_features]
-    for col in categorical_features:
-        X[col] = X[col].astype('category')
-        X_test[col] = X_test[col].astype('category')
-
-    model = TTabM(
-        verbosity=2,
-        random_state=42,
-        val_metric_name='1-auc_ovr',
-        n_cv=5,
-    )
-    model.fit(X, y)
-    test_pred = model.predict_proba(X_test)[:, 1]
-    test_set['score'] = test_pred
-    result = test_set[['user_id', 'item_id', 'score']].copy()
-    result['user_id'] = result['user_id'].astype(str)
-    result['item_id'] = result['item_id'].astype(str)
-
-    print(f"The len of result is: {len(result)}")
-    result = result.sort_values('score', ascending=False).head(50000)
-
-    result[['user_id', 'item_id']].to_csv("data/8/tianchi_prediction_1219_lasso_tabm.txt", sep='\t', index=False, header=False)
-    print(f"预测结果已保存：data/8/tianchi_prediction_1219_lasso_tabm.txt")
     print(f"输出购买对数量：{len(result)}")
 
 # 0.0705 0.0891 0.0583
@@ -536,129 +467,9 @@ def lr_mlp_skl():
     print(f"预测结果已保存：data/8/tianchi_prediction_1219_lr_mlp_skl.txt")
     print(f"输出购买对数量：{len(result)}")
 
-# 0.0560 0.0707 0.0463
-def lasso_mlp_skl():
-    train_set = pd.read_pickle(CACHE_TRAIN_SET)
-    test_set = pd.read_pickle(CACHE_TEST_SET)
-
-
-    balanced_train = balance_train_set(train_set)
-
-    feature_cols = [col for col in balanced_train.columns 
-                        if col not in ['user_id', 'daystime', 'label', 'user_geohash', 'item_category', 'item_id']]
-        
-    print(f"使用特征数: {len(feature_cols)}")
-    print(f"使用特征: {feature_cols}")
-
-    X = balanced_train[feature_cols]
-    y = balanced_train['label']
-    X_test = test_set[feature_cols]
-    print(f"X shape: {X.shape}") #(920607, 42)
-    categorical_features = ['behavior_type', 'hours']
-
-    X_num = X[[col for col in X.columns if col not in categorical_features]]
-
-    lr_selector = SelectFromModel(
-        estimator=Lasso(),
-        max_features=28,
-        threshold=-np.inf
-    )
-    
-    lr_selector.fit(X_num, y)
-    
-    mask = lr_selector.get_support()
-    selected_numerical = X_num.columns[mask].tolist()
-    
-    print(f"Lasso选择的数值特征数量: {len(selected_numerical)}")
-    print(f"Lasso选择的数值特征: {selected_numerical}")
-    print(f"被剔除的数值特征: {[col for col in X_num.columns if col not in selected_numerical]}")
-
-    # 最终特征 = 保留的数值特征 + 所有类别特征
-    final_features = selected_numerical + categorical_features
-
-    print(f"最终特征数量: {len(final_features)}")
-    print(f"最终特征: {final_features}")
-
-    X = balanced_train[final_features]
-    X_test = test_set[final_features]
-
-   # 更新数值特征列表
-    numerical_features = [col for col in final_features if col not in categorical_features]
-    print(f"数值特征数: {len(numerical_features)}, 分类特征数: {len(categorical_features)}")
-
-    # ========== 5 折交叉验证（类似 LightGBM 风格） ==========
-    print("\n========== 开始 5 折交叉验证 ==========")
-    
-    skf = StratifiedKFold(n_splits=5, random_state=42, shuffle=True)
-    ens_test = []  # 存储每折对测试集的预测
-    fold_aucs = []  # 存储每折验证集 AUC
-
-    for fold, (train_ix, val_ix) in enumerate(skf.split(X, y)):
-        print(f'\nFold {fold + 1}/5')
-        
-        # 划分数据
-        X_train, X_val = X.iloc[train_ix], X.iloc[val_ix]
-        y_train, y_val = y.iloc[train_ix], y.iloc[val_ix]
-        
-        # 构建预处理（每折单独 fit，防止数据泄漏）
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ('num', StandardScaler(), numerical_features),
-                ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), categorical_features)
-            ]
-        )
-        
-        # 构建 Pipeline
-        mlp_params = {
-            'hidden_layer_sizes': (512, 512, 512),
-            'max_iter': 500,
-            'random_state': 42,
-            'early_stopping': True,
-        }
-        
-        model = Pipeline([
-            ('preprocessor', preprocessor),
-            ('mlp', MLPClassifier(**mlp_params))
-        ])
-        
-        # 训练
-        model.fit(X_train, y_train)
-        
-        # 验证集评估
-        val_proba = model.predict_proba(X_val)[:, 1]
-        val_auc = roc_auc_score(y_val, val_proba)
-        fold_aucs.append(val_auc)
-        print(f'  Val AUC: {val_auc:.4f}')
-        
-        # 测试集预测
-        test_proba = model.predict_proba(X_test)[:, 1]
-        ens_test.append(test_proba)
-        print(f'  Test pred shape: {test_proba.shape}')
-
-    # ========== 汇总结果 ==========
-    print(f"\n========== 交叉验证汇总 ==========")
-    print(f'每折 Val AUC: {[f"{auc:.4f}" for auc in fold_aucs]}')
-    print(f'平均 Val AUC: {np.mean(fold_aucs):.4f} (+/- {np.std(fold_aucs) * 2:.4f})')
-
-    # 集成预测：5 折平均
-    mean_preds = np.mean(ens_test, axis=0)
-    print(f'集成预测 shape: {mean_preds.shape}')
-
-    test_set['score'] = mean_preds
-    result = test_set[['user_id', 'item_id', 'score']].copy()
-    result['user_id'] = result['user_id'].astype(str)
-    result['item_id'] = result['item_id'].astype(str)
-
-    print(f"The len of result is: {len(result)}")
-    result = result.sort_values('score', ascending=False).head(50000)
-
-    result[['user_id', 'item_id']].to_csv("data/8/tianchi_prediction_1219_lasso_mlp_skl.txt", sep='\t', index=False, header=False)
-    print(f"预测结果已保存：data/8/tianchi_prediction_1219_lasso_mlp_skl.txt")
-    print(f"输出购买对数量：{len(result)}")
-
 @result_beep
 def main():
-    lasso_tabm()
+    iwt_tabm()
 
 if __name__ == '__main__':
     main()
