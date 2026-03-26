@@ -153,7 +153,7 @@ def lr_tabm():
     print('Submission csv saved!')
 
 # ===============skl_mlp=================
-# 0.6881
+# 0.6904
 def iwt_mlp_skl():
     data = pd.read_csv(f'data/2/features_cat.csv')
     train = data[data["origin"] == "train"].drop(["origin"], axis=1)
