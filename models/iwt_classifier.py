@@ -430,6 +430,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
+        X, y = self._validate_data(X, y)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
 
@@ -469,6 +470,7 @@ class IWT_Classifier(ClassifierMixin, BaseEstimator):
 
     def predict_proba(self, X):
         check_is_fitted(self)
+        X = self._validate_data(X, reset=False)
 
         device = self.gidx.device
         if self.need_normalize:
